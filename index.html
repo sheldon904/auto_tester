@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PageSpeed Insights Batch Tester</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>PageSpeed Insights Batch Tester</h1>
+            <p>Test your website multiple times to get consistent performance metrics</p>
+        </header>
+
+        <div class="form-section" id="formSection">
+            <div class="input-group">
+                <label for="urlInput">Website URL:</label>
+                <input type="url" id="urlInput" placeholder="https://example.com" required>
+            </div>
+            
+            <div class="input-group">
+                <label for="testCount">Number of Tests:</label>
+                <input type="number" id="testCount" min="1" max="20" value="5" required>
+            </div>
+            
+            <button id="startTestBtn" class="start-btn">Start Testing</button>
+        </div>
+
+        <div class="loading-section hidden" id="loadingSection">
+            <div class="loading-spinner"></div>
+            <h2>Running Tests...</h2>
+            <div class="progress-info">
+                <p id="progressText">Preparing tests...</p>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <p id="progressCount">0 / 0 tests completed</p>
+            </div>
+        </div>
+
+        <div class="results-section hidden" id="resultsSection">
+            <h2>Test Results</h2>
+            
+            <div class="individual-results">
+                <h3>Individual Test Results</h3>
+                <div id="individualResults" class="results-grid"></div>
+            </div>
+
+            <div class="average-results">
+                <h3>Average Results</h3>
+                <div class="device-results">
+                    <div class="device-column">
+                        <h4>Desktop</h4>
+                        <div id="desktopAverages" class="averages-grid"></div>
+                    </div>
+                    <div class="device-column">
+                        <h4>Mobile</h4>
+                        <div id="mobileAverages" class="averages-grid"></div>
+                    </div>
+                </div>
+                <button id="copyResultsBtn" class="copy-btn">Copy Results to Clipboard</button>
+            </div>
+        </div>
+
+        <button id="resetBtn" class="reset-btn hidden">Run New Test</button>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
