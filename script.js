@@ -94,8 +94,11 @@ class PageSpeedTester {
                 this.updateIndividualResults();
                 
                 if (i < this.totalTests - 1) {
-                    this.updateProgress(`Waiting 35 seconds for cache to clear...`);
-                    await this.sleep(35000);
+                    const waitTime = 35;
+                    for (let countdown = waitTime; countdown > 0; countdown--) {
+                        this.updateProgress(`Waiting ${countdown} seconds for cache to clear...`);
+                        await this.sleep(1000);
+                    }
                 }
             } catch (error) {
                 console.error(`Test ${i + 1} failed:`, error);
@@ -117,15 +120,25 @@ class PageSpeedTester {
             mobile: null
         };
 
-        const promises = [
-            this.callPageSpeedAPI('desktop'),
-            this.callPageSpeedAPI('mobile')
-        ];
+        try {
+            this.updateProgress(`Running desktop test ${testNumber}...`);
+            const desktopResult = await this.callPageSpeedAPI('desktop');
+            testResult.desktop = this.extractMetrics(desktopResult);
+            
+            await this.sleep(2000);
+            
+            this.updateProgress(`Running mobile test ${testNumber}...`);
+            const mobileResult = await this.callPageSpeedAPI('mobile');
+            testResult.mobile = this.extractMetrics(mobileResult);
+            
+        } catch (error) {
+            console.error(`Error in test ${testNumber}:`, error);
+            throw new Error(`Test ${testNumber} failed: ${error.message}`);
+        }
 
-        const [desktopResult, mobileResult] = await Promise.all(promises);
-        
-        testResult.desktop = this.extractMetrics(desktopResult);
-        testResult.mobile = this.extractMetrics(mobileResult);
+        if (!testResult.desktop || !testResult.mobile) {
+            throw new Error(`Test ${testNumber} returned incomplete data`);
+        }
 
         return testResult;
     }
@@ -134,8 +147,11 @@ class PageSpeedTester {
         const apiKey = 'YOUR_API_KEY_HERE';
         const apiUrl = `https://www.googleapis.com/pagespeed/insights/v5/runPagespeed`;
         
+        const cacheBuster = Date.now() + Math.random();
+        const testUrl = this.url + (this.url.includes('?') ? '&' : '?') + `_cb=${cacheBuster}`;
+        
         const params = new URLSearchParams({
-            url: this.url,
+            url: testUrl,
             strategy: strategy,
             category: 'performance'
         });
@@ -144,6 +160,8 @@ class PageSpeedTester {
             params.append('key', apiKey);
         }
 
+        console.log(`Making API call for ${strategy} with URL: ${testUrl}`);
+        
         const response = await fetch(`${apiUrl}?${params}`, {
             method: 'GET',
             headers: {
@@ -153,24 +171,45 @@ class PageSpeedTester {
         });
 
         if (!response.ok) {
-            throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+            const errorText = await response.text();
+            console.error(`API Error Response:`, errorText);
+            throw new Error(`API request failed: ${response.status} ${response.statusText} - ${errorText}`);
         }
 
-        return await response.json();
+        const data = await response.json();
+        
+        if (!data.lighthouseResult || !data.lighthouseResult.audits) {
+            console.error('Invalid API response:', data);
+            throw new Error('Invalid response from PageSpeed API - missing lighthouse data');
+        }
+
+        console.log(`${strategy} test completed successfully`);
+        return data;
     }
 
     extractMetrics(apiResponse) {
+        if (!apiResponse || !apiResponse.lighthouseResult) {
+            throw new Error('Invalid API response structure');
+        }
+        
         const lighthouse = apiResponse.lighthouseResult;
         const audits = lighthouse.audits;
 
-        return {
+        if (!audits) {
+            throw new Error('No audits data in API response');
+        }
+
+        const metrics = {
             fcp: this.getMetricValue(audits['first-contentful-paint']),
             lcp: this.getMetricValue(audits['largest-contentful-paint']),
             cls: this.getMetricValue(audits['cumulative-layout-shift']),
             tbt: this.getMetricValue(audits['total-blocking-time']),
             speedIndex: this.getMetricValue(audits['speed-index']),
-            performanceScore: lighthouse.categories.performance.score * 100
+            performanceScore: lighthouse.categories?.performance?.score ? lighthouse.categories.performance.score * 100 : null
         };
+
+        console.log('Extracted metrics:', metrics);
+        return metrics;
     }
 
     getMetricValue(audit) {
