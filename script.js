@@ -37,11 +37,18 @@ class PageSpeedTester {
         this.showLoadingScreen();
         
         try {
+            console.log('Starting test sequence...');
             await this.runAllTests();
+            
+            console.log('Tests completed, calculating averages...');
             this.calculateAverages();
+            
+            console.log('Showing results...');
             this.showResults();
+            
         } catch (error) {
-            this.showError('An error occurred during testing: ' + error.message);
+            console.error('Major error during testing:', error);
+            this.showError('An error occurred during testing: ' + error.message + '. Check console for details.');
         } finally {
             this.isRunning = false;
         }
@@ -82,14 +89,18 @@ class PageSpeedTester {
     }
 
     async runAllTests() {
+        console.log(`Starting ${this.totalTests} tests for URL: ${this.url}`);
+        
         for (let i = 0; i < this.totalTests; i++) {
             this.currentTestIndex = i;
             this.updateProgress(`Running test ${i + 1} of ${this.totalTests}...`);
             
             try {
+                console.log(`--- Starting Test ${i + 1} ---`);
                 const testResult = await this.runSingleTest(i + 1);
-                this.testResults.push(testResult);
+                console.log(`Test ${i + 1} completed successfully:`, testResult);
                 
+                this.testResults.push(testResult);
                 this.updateProgress(`Completed test ${i + 1} of ${this.totalTests}`);
                 this.updateIndividualResults();
                 
@@ -101,15 +112,25 @@ class PageSpeedTester {
                     }
                 }
             } catch (error) {
-                console.error(`Test ${i + 1} failed:`, error);
-                this.testResults.push({
+                console.error(`Test ${i + 1} failed with error:`, error);
+                
+                const failedResult = {
                     testNumber: i + 1,
                     error: error.message,
                     desktop: null,
-                    mobile: null
-                });
+                    mobile: null,
+                    timestamp: new Date().toISOString()
+                };
+                
+                this.testResults.push(failedResult);
+                console.log(`Added failed result:`, failedResult);
+                
+                this.updateProgress(`Test ${i + 1} failed: ${error.message}`);
+                await this.sleep(2000);
             }
         }
+        
+        console.log(`All tests completed. Total results:`, this.testResults);
     }
 
     async runSingleTest(testNumber) {
@@ -305,9 +326,17 @@ class PageSpeedTester {
     }
 
     calculateAverages() {
-        const validResults = this.testResults.filter(result => !result.error);
+        console.log('Calculating averages from results:', this.testResults);
+        
+        const validResults = this.testResults.filter(result => !result.error && result.desktop && result.mobile);
+        console.log(`Found ${validResults.length} valid results out of ${this.testResults.length} total`);
         
         if (validResults.length === 0) {
+            console.warn('No valid results found for averaging');
+            this.averages = {
+                desktop: null,
+                mobile: null
+            };
             return;
         }
 
@@ -315,6 +344,8 @@ class PageSpeedTester {
             desktop: this.calculateDeviceAverages(validResults, 'desktop'),
             mobile: this.calculateDeviceAverages(validResults, 'mobile')
         };
+        
+        console.log('Calculated averages:', this.averages);
     }
 
     calculateDeviceAverages(results, device) {
@@ -419,6 +450,15 @@ class PageSpeedTester {
     }
 
     formatResultsForClipboard() {
+        if (!this.averages || !this.averages.desktop || !this.averages.mobile) {
+            return `PageSpeed Insights Batch Test Results\n` +
+                   `URL: ${this.url}\n` +
+                   `Tests: ${this.totalTests}\n` +
+                   `Date: ${new Date().toLocaleDateString()}\n\n` +
+                   `ERROR: No valid test results were obtained.\n` +
+                   `Please check the console for detailed error information.`;
+        }
+        
         const url = this.url;
         const testCount = this.totalTests;
         const date = new Date().toLocaleDateString();
