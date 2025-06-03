@@ -166,7 +166,6 @@ class PageSpeedTester {
 
     async callPageSpeedAPI(strategy) {
         const apiKey = 'YOUR_API_KEY_HERE';
-        const apiUrl = `https://www.googleapis.com/pagespeed/insights/v5/runPagespeed`;
         
         const cacheBuster = Date.now() + Math.random();
         const testUrl = this.url + (this.url.includes('?') ? '&' : '?') + `_cb=${cacheBuster}`;
@@ -183,29 +182,52 @@ class PageSpeedTester {
 
         console.log(`Making API call for ${strategy} with URL: ${testUrl}`);
         
-        const response = await fetch(`${apiUrl}?${params}`, {
-            method: 'GET',
-            headers: {
-                'Cache-Control': 'no-cache',
-                'Pragma': 'no-cache'
-            }
-        });
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error(`API Error Response:`, errorText);
-            throw new Error(`API request failed: ${response.status} ${response.statusText} - ${errorText}`);
-        }
-
-        const data = await response.json();
+        const apiUrl = `https://www.googleapis.com/pagespeed/insights/v5/runPagespeed`;
+        const targetUrl = `${apiUrl}?${params}`;
         
-        if (!data.lighthouseResult || !data.lighthouseResult.audits) {
-            console.error('Invalid API response:', data);
-            throw new Error('Invalid response from PageSpeed API - missing lighthouse data');
-        }
+        // Try multiple CORS proxies in case one fails
+        const proxies = [
+            'https://api.allorigins.win/raw?url=',
+            'https://cors-anywhere.herokuapp.com/',
+            'https://api.codetabs.com/v1/proxy?quest='
+        ];
+        
+        for (let i = 0; i < proxies.length; i++) {
+            const proxyUrl = proxies[i];
+            const fullUrl = `${proxyUrl}${encodeURIComponent(targetUrl)}`;
+            
+            try {
+                console.log(`Attempt ${i + 1}: Using proxy: ${proxyUrl}`);
+                
+                const response = await fetch(fullUrl, {
+                    method: 'GET',
+                    headers: {
+                        'Cache-Control': 'no-cache',
+                        'Pragma': 'no-cache'
+                    }
+                });
 
-        console.log(`${strategy} test completed successfully`);
-        return data;
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                
+                if (!data.lighthouseResult || !data.lighthouseResult.audits) {
+                    throw new Error('Invalid response structure from PageSpeed API');
+                }
+
+                console.log(`${strategy} test completed successfully using proxy ${i + 1}`);
+                return data;
+                
+            } catch (error) {
+                console.warn(`Proxy ${i + 1} failed:`, error.message);
+                if (i === proxies.length - 1) {
+                    throw new Error(`All proxies failed. Last error: ${error.message}`);
+                }
+                // Try next proxy
+            }
+        }
     }
 
     extractMetrics(apiResponse) {
