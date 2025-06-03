@@ -27,16 +27,33 @@ An automated tool for running multiple Google PageSpeed Insights tests to get co
 6. **View Averages**: See calculated averages for all metrics
 7. **Copy Results**: Use "Copy Results to Clipboard" for easy sharing
 
-## API Key (Optional)
+## API Key Setup (Highly Recommended)
 
-The tool works without an API key but has rate limits. For unlimited testing:
+While the tool works without an API key, it has severe rate limits (100 requests per 100 seconds). For reliable testing:
 
-1. Get a Google PageSpeed Insights API key from [Google Cloud Console](https://console.cloud.google.com/)
-2. Replace `YOUR_API_KEY_HERE` in `script.js` with your actual API key
+### Getting an API Key:
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Create a new project or select existing one
+3. Enable the "PageSpeed Insights API"
+4. Go to Credentials → Create Credentials → API Key
+5. Copy your API key
 
-```javascript
-const apiKey = 'your_actual_api_key_here';
-```
+### Setting Up the API Key:
+
+**For Vercel Deployment:**
+1. In your Vercel dashboard, go to your project
+2. Go to Settings → Environment Variables
+3. Add: `PAGESPEED_API_KEY` = `your_actual_api_key`
+4. Redeploy your project
+
+**For Local Development:**
+1. Copy `.env.example` to `.env.local`
+2. Replace `your_api_key_here` with your actual API key
+3. The serverless function will automatically use it
+
+### Rate Limits:
+- **Without API Key**: 100 requests per 100 seconds (will fail quickly)
+- **With API Key**: 25,000 requests per day, 240 per minute
 
 ## Technical Details
 
